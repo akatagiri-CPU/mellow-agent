@@ -95,12 +95,24 @@ create table if not exists candidates (
   email text,
   status candidate_status not null default 'applied',
   resume_text text not null default '',
-  ai_trait_summary text[],
-  ai_interview_questions text[],
+  ai_strengths text[],
+  ai_concerns text[],
+  ai_blank_spots text[],
+  ai_axis_questions jsonb,
+  ai_analyzed_at timestamptz,
   created_by uuid references profiles (id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- 面接前サポート導入前の旧カラムからの移行（既存テーブルにも安全に適用可能）。
+alter table candidates drop column if exists ai_trait_summary;
+alter table candidates drop column if exists ai_interview_questions;
+alter table candidates add column if not exists ai_strengths text[];
+alter table candidates add column if not exists ai_concerns text[];
+alter table candidates add column if not exists ai_blank_spots text[];
+alter table candidates add column if not exists ai_axis_questions jsonb;
+alter table candidates add column if not exists ai_analyzed_at timestamptz;
 
 create table if not exists candidate_scores (
   id uuid primary key default gen_random_uuid(),

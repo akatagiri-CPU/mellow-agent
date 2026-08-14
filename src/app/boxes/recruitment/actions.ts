@@ -3,8 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { analyzeCandidateResume } from "@/lib/anthropic";
-import type { CandidateStatus } from "@/lib/types";
+import { analyzePreInterview, type ResumeInput } from "@/lib/anthropic";
+import type { CandidateStatus, PreInterviewAnalysis } from "@/lib/types";
+
+const ACCEPTED_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+]);
+const MAX_FILE_BYTES = 8 * 1024 * 1024;
 
 async function requireCompanyProfile() {
   const supabase = await createClient();
@@ -55,7 +63,31 @@ export async function createCandidate(formData: FormData) {
   revalidatePath("/boxes/recruitment");
 }
 
-export async function generateAnalysis(candidateId: string) {
+async function saveAnalysis(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  candidateId: string,
+  analysis: PreInterviewAnalysis,
+) {
+  const { error } = await supabase
+    .from("candidates")
+    .update({
+      ai_strengths: analysis.strengths,
+      ai_concerns: analysis.concerns,
+      ai_blank_spots: analysis.blank_spots,
+      ai_axis_questions: analysis.axis_questions,
+      ai_analyzed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", candidateId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath(`/boxes/recruitment/${candidateId}`);
+}
+
+export async function generateAnalysisFromText(candidateId: string) {
   const { supabase } = await requireCompanyProfile();
 
   const { data: candidate, error: fetchError } = await supabase
@@ -71,22 +103,38 @@ export async function generateAnalysis(candidateId: string) {
     throw new Error("履歴書・職務経歴書のテキストが未入力です");
   }
 
-  const analysis = await analyzeCandidateResume(candidate.resume_text);
+  const analysis = await analyzePreInterview({ kind: "text", text: candidate.resume_text });
+  await saveAnalysis(supabase, candidateId, analysis);
+}
 
-  const { error: updateError } = await supabase
-    .from("candidates")
-    .update({
-      ai_trait_summary: analysis.trait_summary,
-      ai_interview_questions: analysis.interview_questions,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", candidateId);
+export async function generateAnalysisFromFile(candidateId: string, formData: FormData) {
+  const { supabase } = await requireCompanyProfile();
 
-  if (updateError) {
-    throw new Error(updateError.message);
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("ファイルを選択してください");
+  }
+  if (file.size > MAX_FILE_BYTES) {
+    throw new Error("ファイルサイズは8MB以内にしてください");
   }
 
-  revalidatePath(`/boxes/recruitment/${candidateId}`);
+  const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
+
+  let input: ResumeInput;
+  if (file.type === "application/pdf") {
+    input = { kind: "pdf", base64 };
+  } else if (ACCEPTED_IMAGE_TYPES.has(file.type)) {
+    input = {
+      kind: "image",
+      base64,
+      mediaType: file.type as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+    };
+  } else {
+    throw new Error("対応していないファイル形式です（PDF・JPEG・PNG・GIF・WebPのみ）");
+  }
+
+  const analysis = await analyzePreInterview(input);
+  await saveAnalysis(supabase, candidateId, analysis);
 }
 
 export async function addScore(formData: FormData) {

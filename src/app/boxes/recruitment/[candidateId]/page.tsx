@@ -3,8 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "@/components/SignOutButton";
 import { CandidateStatusSelect } from "@/components/CandidateStatusSelect";
-import { generateAnalysis, addScore } from "../actions";
-import type { Candidate, CandidateScore } from "@/lib/types";
+import { generateAnalysisFromText, generateAnalysisFromFile, addScore } from "../actions";
+import { INTERVIEW_AXES, type Candidate, type CandidateScore } from "@/lib/types";
 
 export default async function CandidateDetailPage({
   params,
@@ -41,8 +41,10 @@ export default async function CandidateDetailPage({
   const typedCandidate = candidate as Candidate;
   const typedScores = (scores ?? []) as unknown as CandidateScore[];
 
-  const generateAnalysisForCandidate = generateAnalysis.bind(null, candidateId);
+  const generateFromTextForCandidate = generateAnalysisFromText.bind(null, candidateId);
+  const generateFromFileForCandidate = generateAnalysisFromFile.bind(null, candidateId);
   const aiConfigured = Boolean(process.env.ANTHROPIC_API_KEY);
+  const hasAnalysis = Boolean(typedCandidate.ai_analyzed_at);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -75,48 +77,94 @@ export default async function CandidateDetailPage({
         </section>
 
         <section>
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-gray-900">AIによる特性分析</h2>
-            {aiConfigured ? (
-              <form action={generateAnalysisForCandidate}>
+          <h2 className="mb-2 text-base font-semibold text-gray-900">面接前サポート</h2>
+
+          {aiConfigured ? (
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-white p-4">
+              <form action={generateFromTextForCandidate}>
                 <button
                   type="submit"
                   className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-blue-700"
                 >
-                  {typedCandidate.ai_trait_summary ? "再生成" : "AIで生成"}
+                  {hasAnalysis ? "テキストから再分析" : "テキストから分析"}
                 </button>
               </form>
-            ) : (
-              <button
-                type="button"
-                disabled
-                title="AIキーの設定後に利用できます"
-                className="cursor-not-allowed rounded-md bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-500"
-              >
-                準備中
-              </button>
-            )}
-          </div>
+              <form action={generateFromFileForCandidate} className="flex items-center gap-2">
+                <input
+                  type="file"
+                  name="file"
+                  accept="application/pdf,image/png,image/jpeg,image/gif,image/webp"
+                  required
+                  className="text-sm text-gray-600"
+                />
+                <button
+                  type="submit"
+                  className="rounded-md border border-blue-600 px-3 py-1.5 text-sm font-medium text-blue-600 transition hover:bg-blue-50"
+                >
+                  ファイルから分析
+                </button>
+              </form>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled
+              title="AIキーの設定後に利用できます"
+              className="mb-4 cursor-not-allowed rounded-md bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-500"
+            >
+              準備中
+            </button>
+          )}
 
           {!aiConfigured ? (
             <p className="text-sm text-gray-400">準備中です</p>
-          ) : typedCandidate.ai_trait_summary ? (
-            <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-4">
-              <div>
-                <h3 className="mb-1 text-sm font-medium text-gray-700">特性の言語化</h3>
-                <ul className="list-inside list-disc space-y-1 text-sm text-gray-700">
-                  {typedCandidate.ai_trait_summary.map((trait, i) => (
-                    <li key={i}>{trait}</li>
-                  ))}
-                </ul>
+          ) : hasAnalysis ? (
+            <div className="space-y-6 rounded-lg border border-gray-200 bg-white p-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <h3 className="mb-1 text-sm font-medium text-gray-700">強み</h3>
+                  <ul className="list-inside list-disc space-y-1 text-sm text-gray-700">
+                    {typedCandidate.ai_strengths?.map((item, i) => (
+                      <li key={i}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="mb-1 text-sm font-medium text-gray-700">懸念点</h3>
+                  <ul className="list-inside list-disc space-y-1 text-sm text-gray-700">
+                    {typedCandidate.ai_concerns?.map((item, i) => (
+                      <li key={i}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="mb-1 text-sm font-medium text-gray-700">面接で確認すべき空白</h3>
+                  <ul className="list-inside list-disc space-y-1 text-sm text-gray-700">
+                    {typedCandidate.ai_blank_spots?.map((item, i) => (
+                      <li key={i}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
               </div>
+
               <div>
-                <h3 className="mb-1 text-sm font-medium text-gray-700">面接質問の提案</h3>
-                <ul className="list-inside list-disc space-y-1 text-sm text-gray-700">
-                  {typedCandidate.ai_interview_questions?.map((question, i) => (
-                    <li key={i}>{question}</li>
-                  ))}
-                </ul>
+                <h3 className="mb-2 text-sm font-medium text-gray-700">評価軸ごとの質問</h3>
+                <div className="space-y-3">
+                  {INTERVIEW_AXES.map((axis) => {
+                    const questions = typedCandidate.ai_axis_questions?.find(
+                      (a) => a.key === axis.key,
+                    )?.questions;
+                    return (
+                      <div key={axis.key}>
+                        <p className="text-sm font-medium text-gray-800">{axis.label}</p>
+                        <p className="mb-1 text-xs text-gray-400">{axis.description}</p>
+                        <ul className="list-inside list-disc space-y-1 text-sm text-gray-700">
+                          {questions?.map((question, i) => <li key={i}>{question}</li>)}
+                        </ul>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           ) : (

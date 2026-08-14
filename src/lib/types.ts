@@ -30,6 +30,66 @@ export const CANDIDATE_STATUS_LABELS: Record<CandidateStatus, string> = {
   rejected: "不採用",
 };
 
+export type InterviewAxisKey =
+  | "responsiveness"
+  | "integrity"
+  | "accountability"
+  | "ownership"
+  | "empathetic_communication"
+  | "team_elevation";
+
+export type InterviewAxis = {
+  key: InterviewAxisKey;
+  label: string;
+  description: string;
+};
+
+// 面接前サポートの評価軸。事実を見抜く質問を1〜2個ずつ提案する対象。
+export const INTERVIEW_AXES: InterviewAxis[] = [
+  {
+    key: "responsiveness",
+    label: "即応力",
+    description: "その場で筋の通った回答を出せるか",
+  },
+  {
+    key: "integrity",
+    label: "誠実さ・整合性",
+    description: "一貫しているか、その場凌ぎでないか",
+  },
+  {
+    key: "accountability",
+    label: "自責性・当事者意識",
+    description: "原因を自分に向けられるか",
+  },
+  {
+    key: "ownership",
+    label: "オーナーシップ",
+    description: "仕事を取りに行くか、渡されて動くか",
+  },
+  {
+    key: "empathetic_communication",
+    label: "相手視点のコミュニケーション",
+    description: "自分本位でなく、相手にどう伝わるかを意識できるか",
+  },
+  {
+    key: "team_elevation",
+    label: "周囲を高める力",
+    description: "周りを引き上げるか、受け身で終わるか",
+  },
+];
+
+export type AxisQuestions = {
+  key: InterviewAxisKey;
+  questions: string[];
+};
+
+export type PreInterviewAnalysis = {
+  strengths: string[];
+  concerns: string[];
+  blank_spots: string[];
+  axis_questions: AxisQuestions[];
+};
+
 export type Candidate = {
   id: string;
   company_id: string;
@@ -37,8 +97,11 @@ export type Candidate = {
   email: string | null;
   status: CandidateStatus;
   resume_text: string;
-  ai_trait_summary: string[] | null;
-  ai_interview_questions: string[] | null;
+  ai_strengths: string[] | null;
+  ai_concerns: string[] | null;
+  ai_blank_spots: string[] | null;
+  ai_axis_questions: AxisQuestions[] | null;
+  ai_analyzed_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -64,7 +127,7 @@ export const BOXES: Box[] = [
   {
     id: "recruitment",
     label: "採用管理",
-    description: "履歴書・職務経歴書から特性を言語化し、面接質問の支援・採点を行います",
+    description: "履歴書・職務経歴書から特性を言語化し、面接前サポート・採点を行います",
   },
   {
     id: "talent",
