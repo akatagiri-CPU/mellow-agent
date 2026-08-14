@@ -42,6 +42,7 @@ export default async function CandidateDetailPage({
   const typedScores = (scores ?? []) as unknown as CandidateScore[];
 
   const generateAnalysisForCandidate = generateAnalysis.bind(null, candidateId);
+  const aiConfigured = Boolean(process.env.ANTHROPIC_API_KEY);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -76,17 +77,30 @@ export default async function CandidateDetailPage({
         <section>
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-base font-semibold text-gray-900">AIによる特性分析</h2>
-            <form action={generateAnalysisForCandidate}>
+            {aiConfigured ? (
+              <form action={generateAnalysisForCandidate}>
+                <button
+                  type="submit"
+                  className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-blue-700"
+                >
+                  {typedCandidate.ai_trait_summary ? "再生成" : "AIで生成"}
+                </button>
+              </form>
+            ) : (
               <button
-                type="submit"
-                className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-blue-700"
+                type="button"
+                disabled
+                title="AIキーの設定後に利用できます"
+                className="cursor-not-allowed rounded-md bg-gray-200 px-3 py-1.5 text-sm font-medium text-gray-500"
               >
-                {typedCandidate.ai_trait_summary ? "再生成" : "AIで生成"}
+                準備中
               </button>
-            </form>
+            )}
           </div>
 
-          {typedCandidate.ai_trait_summary ? (
+          {!aiConfigured ? (
+            <p className="text-sm text-gray-400">準備中です</p>
+          ) : typedCandidate.ai_trait_summary ? (
             <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-4">
               <div>
                 <h3 className="mb-1 text-sm font-medium text-gray-700">特性の言語化</h3>
