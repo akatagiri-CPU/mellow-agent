@@ -15,6 +15,10 @@ const SYSTEM_PROMPT = `あなたは採用担当者を支援するアシスタン
 export async function analyzeCandidateResume(
   resumeText: string,
 ): Promise<CandidateAnalysis> {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error("AI機能は準備中です（ANTHROPIC_API_KEYが未設定です）");
+  }
+
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   const message = await client.messages.create({
