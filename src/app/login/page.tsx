@@ -22,7 +22,15 @@ export default function LoginPage() {
     setLoading(false);
 
     if (error) {
-      setError("メールアドレスまたはパスワードが正しくありません");
+      if (error.message === "Email not confirmed") {
+        setError(
+          "メールアドレスが未確認です。Supabaseダッシュボードでユーザーを確認済みにしてください。",
+        );
+      } else if (error.message === "Invalid login credentials") {
+        setError("メールアドレスまたはパスワードが正しくありません");
+      } else {
+        setError(`ログインエラー: ${error.message}`);
+      }
       return;
     }
 
