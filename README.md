@@ -5,15 +5,17 @@ Next.js + Supabase による社内向け業務支援アプリの骨格です。
 ## 構成
 
 - **ログイン画面** (`/login`): メールアドレス・パスワードによるログイン（Supabase Auth）
-- **箱メニュー** (`/`): ログイン後に表示される5つの箱（商談記録・採点・教育・日報・報告）。中身は準備中のプレースホルダー
+- **箱メニュー** (`/`): ログイン後に表示される6つの箱（採用管理・人材管理・営業管理・教育・日報/行動ログ・経営ダッシュボード）
+  - **採用管理** (`/boxes/recruitment`): 候補者登録、履歴書・職務経歴書テキストからAI（Anthropic API）による特性の言語化・面接質問の提案、採点
+  - それ以外の5箱は準備中のプレースホルダー
 - **管理画面** (`/admin`, MELLOWスタッフ専用): 会社の登録、利用者アカウントの登録
 - **会社ごとのデータ分離**: Supabase の Row Level Security (RLS) により、利用者は自社のデータのみ参照可能
 
 ## セットアップ
 
 1. Supabase プロジェクトを作成する
-2. `supabase/schema.sql` を Supabase の SQL Editor で実行し、テーブルと RLS ポリシーを作成する
-3. `.env.local.example` を `.env.local` にコピーし、Supabase の URL・キーを設定する
+2. `supabase/schema.sql` を Supabase の SQL Editor で実行し、テーブルと RLS ポリシーを作成する（再実行しても安全です）
+3. `.env.local.example` を `.env.local` にコピーし、Supabase の URL・キー、Anthropic の API キーを設定する
 
 ```bash
 cp .env.local.example .env.local

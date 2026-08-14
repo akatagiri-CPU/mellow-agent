@@ -15,6 +15,45 @@ export type Company = {
   created_at: string;
 };
 
+export type CandidateStatus =
+  | "applied"
+  | "interviewing"
+  | "offered"
+  | "hired"
+  | "rejected";
+
+export const CANDIDATE_STATUS_LABELS: Record<CandidateStatus, string> = {
+  applied: "応募",
+  interviewing: "面接中",
+  offered: "内定",
+  hired: "入社",
+  rejected: "不採用",
+};
+
+export type Candidate = {
+  id: string;
+  company_id: string;
+  name: string;
+  email: string | null;
+  status: CandidateStatus;
+  resume_text: string;
+  ai_trait_summary: string[] | null;
+  ai_interview_questions: string[] | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CandidateScore = {
+  id: string;
+  candidate_id: string;
+  scorer_id: string;
+  score: number;
+  comment: string | null;
+  created_at: string;
+  scorer: { name: string } | null;
+};
+
 export type Box = {
   id: string;
   label: string;
