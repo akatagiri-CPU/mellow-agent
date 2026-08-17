@@ -2,10 +2,16 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "@/components/SignOutButton";
-import { createCompany, createUser, updateCompanySfaUrl } from "./actions";
+import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { createCompany, createUser, updateCompanySfaUrl, deleteCompany } from "./actions";
 import type { Company, Profile } from "@/lib/types";
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ msg?: string; error?: string }>;
+}) {
+  const { msg, error: errorMsg } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -48,6 +54,17 @@ export default async function AdminPage() {
       </header>
 
       <main className="mx-auto max-w-4xl space-y-10 px-6 py-10">
+        {msg && (
+          <p className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+            {msg}
+          </p>
+        )}
+        {errorMsg && (
+          <p className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {errorMsg}
+          </p>
+        )}
+
         <section>
           <h2 className="mb-4 text-base font-semibold text-gray-900">会社登録</h2>
           <form action={createCompany} className="flex gap-2">
@@ -68,7 +85,17 @@ export default async function AdminPage() {
           <ul className="mt-4 divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
             {(companies as Company[] | null)?.map((company) => (
               <li key={company.id} className="px-4 py-3 text-sm text-gray-700">
-                <div className="mb-2 font-medium text-gray-900">{company.name}</div>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-medium text-gray-900">{company.name}</span>
+                  <form action={deleteCompany}>
+                    <input type="hidden" name="company_id" value={company.id} />
+                    <ConfirmSubmitButton
+                      label="削除"
+                      confirmMessage={`「${company.name}」を削除します。よろしいですか？`}
+                      className="rounded-md border border-red-300 px-3 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                    />
+                  </form>
+                </div>
                 <form
                   action={updateCompanySfaUrl}
                   className="flex flex-wrap items-center gap-2"

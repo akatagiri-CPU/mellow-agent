@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -25,21 +26,83 @@ async function requireMellowAdmin() {
   }
 }
 
+function redirectWithMessage(kind: "msg" | "error", text: string): never {
+  redirect(`/admin?${kind}=${encodeURIComponent(text)}`);
+}
+
 export async function createCompany(formData: FormData) {
   await requireMellowAdmin();
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) {
-    throw new Error("会社名を入力してください");
+    redirectWithMessage("error", "会社名を入力してください");
   }
 
   const supabase = await createClient();
+
+  const { data: existing } = await supabase
+    .from("companies")
+    .select("id")
+    .ilike("name", name)
+    .maybeSingle();
+
+  if (existing) {
+    redirectWithMessage("error", `「${name}」は既に登録されています`);
+  }
+
   const { error } = await supabase.from("companies").insert({ name });
   if (error) {
-    throw new Error(error.message);
+    if (error.code === "23505") {
+      redirectWithMessage("error", `「${name}」は既に登録されています`);
+    }
+    redirectWithMessage("error", error.message);
   }
 
   revalidatePath("/admin");
+  redirectWithMessage("msg", `「${name}」を追加しました`);
+}
+
+export async function deleteCompany(formData: FormData) {
+  await requireMellowAdmin();
+
+  const companyId = String(formData.get("company_id") ?? "").trim();
+  if (!companyId) {
+    redirectWithMessage("error", "会社が指定されていません");
+  }
+
+  const supabase = await createClient();
+
+  const { count: profileCount } = await supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId);
+
+  if (profileCount && profileCount > 0) {
+    redirectWithMessage(
+      "error",
+      "この会社には利用者が登録されているため削除できません。先に利用者を削除してください。",
+    );
+  }
+
+  const { count: candidateCount } = await supabase
+    .from("candidates")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId);
+
+  if (candidateCount && candidateCount > 0) {
+    redirectWithMessage(
+      "error",
+      "この会社には採用管理のデータが登録されているため削除できません。",
+    );
+  }
+
+  const { error } = await supabase.from("companies").delete().eq("id", companyId);
+  if (error) {
+    redirectWithMessage("error", error.message);
+  }
+
+  revalidatePath("/admin");
+  redirectWithMessage("msg", "会社を削除しました");
 }
 
 export async function updateCompanySfaUrl(formData: FormData) {
@@ -49,13 +112,13 @@ export async function updateCompanySfaUrl(formData: FormData) {
   const sfaUrl = String(formData.get("sfa_url") ?? "").trim();
 
   if (!companyId) {
-    throw new Error("会社が指定されていません");
+    redirectWithMessage("error", "会社が指定されていません");
   }
   if (sfaUrl) {
     try {
       new URL(sfaUrl);
     } catch {
-      throw new Error("SFAのURLの形式が不正です");
+      redirectWithMessage("error", "SFAのURLの形式が不正です");
     }
   }
 
@@ -66,11 +129,12 @@ export async function updateCompanySfaUrl(formData: FormData) {
     .eq("id", companyId);
 
   if (error) {
-    throw new Error(error.message);
+    redirectWithMessage("error", error.message);
   }
 
   revalidatePath("/admin");
   revalidatePath("/boxes/sales");
+  redirectWithMessage("msg", "SFAのURLを保存しました");
 }
 
 export async function createUser(formData: FormData) {
@@ -84,10 +148,10 @@ export async function createUser(formData: FormData) {
     | "company_user";
 
   if (!name || !email) {
-    throw new Error("氏名とメールアドレスを入力してください");
+    redirectWithMessage("error", "氏名とメールアドレスを入力してください");
   }
   if (role === "company_user" && !companyId) {
-    throw new Error("利用者には会社の選択が必要です");
+    redirectWithMessage("error", "利用者には会社の選択が必要です");
   }
 
   const admin = createAdminClient();
@@ -100,7 +164,7 @@ export async function createUser(formData: FormData) {
     });
 
   if (createError || !created.user) {
-    throw new Error(createError?.message ?? "ユーザー作成に失敗しました");
+    redirectWithMessage("error", createError?.message ?? "ユーザー作成に失敗しました");
   }
 
   const { error: profileError } = await admin.from("profiles").insert({
@@ -112,13 +176,14 @@ export async function createUser(formData: FormData) {
   });
 
   if (profileError) {
-    throw new Error(profileError.message);
+    redirectWithMessage("error", profileError.message);
   }
 
   const { error: resetError } = await admin.auth.resetPasswordForEmail(email);
   if (resetError) {
-    throw new Error(resetError.message);
+    redirectWithMessage("error", resetError.message);
   }
 
   revalidatePath("/admin");
+  redirectWithMessage("msg", `「${name}」を追加しました`);
 }
