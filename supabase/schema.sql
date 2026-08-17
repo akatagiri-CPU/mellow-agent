@@ -3,8 +3,11 @@
 create table if not exists companies (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  sfa_url text,
   created_at timestamptz not null default now()
 );
+
+alter table companies add column if not exists sfa_url text;
 
 do $$
 begin

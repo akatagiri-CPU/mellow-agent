@@ -42,6 +42,37 @@ export async function createCompany(formData: FormData) {
   revalidatePath("/admin");
 }
 
+export async function updateCompanySfaUrl(formData: FormData) {
+  await requireMellowAdmin();
+
+  const companyId = String(formData.get("company_id") ?? "").trim();
+  const sfaUrl = String(formData.get("sfa_url") ?? "").trim();
+
+  if (!companyId) {
+    throw new Error("会社が指定されていません");
+  }
+  if (sfaUrl) {
+    try {
+      new URL(sfaUrl);
+    } catch {
+      throw new Error("SFAのURLの形式が不正です");
+    }
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("companies")
+    .update({ sfa_url: sfaUrl || null })
+    .eq("id", companyId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/boxes/sales");
+}
+
 export async function createUser(formData: FormData) {
   await requireMellowAdmin();
 
