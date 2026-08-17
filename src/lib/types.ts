@@ -12,6 +12,7 @@ export type Profile = {
 export type Company = {
   id: string;
   name: string;
+  sfa_url: string | null;
   created_at: string;
 };
 

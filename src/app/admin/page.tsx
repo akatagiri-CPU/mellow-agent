@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SignOutButton } from "@/components/SignOutButton";
-import { createCompany, createUser } from "./actions";
+import { createCompany, createUser, updateCompanySfaUrl } from "./actions";
 import type { Company, Profile } from "@/lib/types";
 
 export default async function AdminPage() {
@@ -27,7 +27,7 @@ export default async function AdminPage() {
 
   const { data: companies } = await supabase
     .from("companies")
-    .select("id, name, created_at")
+    .select("id, name, sfa_url, created_at")
     .order("created_at", { ascending: false });
 
   const { data: users } = await supabase
@@ -68,7 +68,27 @@ export default async function AdminPage() {
           <ul className="mt-4 divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
             {(companies as Company[] | null)?.map((company) => (
               <li key={company.id} className="px-4 py-3 text-sm text-gray-700">
-                {company.name}
+                <div className="mb-2 font-medium text-gray-900">{company.name}</div>
+                <form
+                  action={updateCompanySfaUrl}
+                  className="flex flex-wrap items-center gap-2"
+                >
+                  <input type="hidden" name="company_id" value={company.id} />
+                  <label className="text-xs text-gray-500">SFAのスプレッドシートURL</label>
+                  <input
+                    name="sfa_url"
+                    type="url"
+                    defaultValue={company.sfa_url ?? ""}
+                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                    className="min-w-64 flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-md border border-blue-600 px-3 py-1.5 text-sm font-medium text-blue-600 transition hover:bg-blue-50"
+                  >
+                    保存
+                  </button>
+                </form>
               </li>
             ))}
             {!companies?.length && (
