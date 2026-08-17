@@ -16,26 +16,34 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-    setLoading(false);
-
-    if (error) {
-      if (error.message === "Email not confirmed") {
-        setError(
-          "メールアドレスが未確認です。Supabaseダッシュボードでユーザーを確認済みにしてください。",
-        );
-      } else if (error.message === "Invalid login credentials") {
-        setError("メールアドレスまたはパスワードが正しくありません");
-      } else {
-        setError(`ログインエラー: ${error.message}`);
+      if (error) {
+        if (error.message === "Email not confirmed") {
+          setError(
+            "メールアドレスが未確認です。Supabaseダッシュボードでユーザーを確認済みにしてください。",
+          );
+        } else if (error.message === "Invalid login credentials") {
+          setError("メールアドレスまたはパスワードが正しくありません");
+        } else if (error.message === "Load failed" || error.message === "Failed to fetch") {
+          setError(
+            "Supabaseへの通信に失敗しました。Supabaseプロジェクトが一時停止(pause)されていないか、Vercelの環境変数(NEXT_PUBLIC_SUPABASE_URL)が正しいかご確認ください。",
+          );
+        } else {
+          setError(`ログインエラー: ${error.message}`);
+        }
+        return;
       }
-      return;
-    }
 
-    router.push("/");
-    router.refresh();
+      router.push("/");
+      router.refresh();
+    } catch (err) {
+      setError(`ログインエラー: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
