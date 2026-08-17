@@ -186,3 +186,88 @@ create policy candidate_scores_write on candidate_scores
         and c.company_id = current_user_company_id()
     )
   );
+
+-- Sales (営業管理): deals and their progress logs, scoped per company.
+-- stage is plain text (no DB enum/check) so per-company custom pipelines
+-- can be introduced later without a schema migration; the standard
+-- 6-stage list is validated at the application layer for now.
+
+create table if not exists deals (
+  id uuid primary key default gen_random_uuid(),
+  company_id uuid not null references companies (id) on delete cascade,
+  name text not null,
+  customer_name text,
+  acquisition_channel text,
+  owner_name text,
+  stage text not null default 'approach',
+  amount numeric,
+  next_action text,
+  created_by uuid references profiles (id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists deal_logs (
+  id uuid primary key default gen_random_uuid(),
+  deal_id uuid not null references deals (id) on delete cascade,
+  logged_at date not null default current_date,
+  handled_by text,
+  content text,
+  stage text not null,
+  created_by uuid references profiles (id),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists deals_company_id_idx on deals (company_id);
+create index if not exists deal_logs_deal_id_idx on deal_logs (deal_id);
+
+alter table deals enable row level security;
+alter table deal_logs enable row level security;
+
+drop policy if exists deals_select on deals;
+create policy deals_select on deals
+  for select using (
+    current_user_role() = 'mellow_admin'
+    or company_id = current_user_company_id()
+  );
+
+drop policy if exists deals_write on deals;
+create policy deals_write on deals
+  for all using (
+    current_user_role() = 'mellow_admin'
+    or company_id = current_user_company_id()
+  )
+  with check (
+    current_user_role() = 'mellow_admin'
+    or company_id = current_user_company_id()
+  );
+
+drop policy if exists deal_logs_select on deal_logs;
+create policy deal_logs_select on deal_logs
+  for select using (
+    current_user_role() = 'mellow_admin'
+    or exists (
+      select 1 from deals d
+      where d.id = deal_logs.deal_id
+        and d.company_id = current_user_company_id()
+    )
+  );
+
+drop policy if exists deal_logs_write on deal_logs;
+create policy deal_logs_write on deal_logs
+  for all using (
+    current_user_role() = 'mellow_admin'
+    or exists (
+      select 1 from deals d
+      where d.id = deal_logs.deal_id
+        and d.company_id = current_user_company_id()
+    )
+  )
+  with check (
+    current_user_role() = 'mellow_admin'
+    or exists (
+      select 1 from deals d
+      where d.id = deal_logs.deal_id
+        and d.company_id = current_user_company_id()
+    )
+  );
