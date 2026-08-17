@@ -118,6 +118,59 @@ export type CandidateScore = {
   scorer: { name: string } | null;
 };
 
+export type DealStage =
+  | "approach"
+  | "negotiation"
+  | "proposal"
+  | "closing"
+  | "won"
+  | "lost";
+
+// 標準の6ステージ。会社別カスタマイズは将来ここを会社ごとの設定に差し替える形で拡張する想定。
+export const DEAL_STAGES: DealStage[] = [
+  "approach",
+  "negotiation",
+  "proposal",
+  "closing",
+  "won",
+  "lost",
+];
+
+export const DEAL_STAGE_LABELS: Record<DealStage, string> = {
+  approach: "アプローチ",
+  negotiation: "商談",
+  proposal: "提案",
+  closing: "クロージング",
+  won: "受注",
+  lost: "失注",
+};
+
+export type Deal = {
+  id: string;
+  company_id: string;
+  name: string;
+  customer_name: string | null;
+  acquisition_channel: string | null;
+  owner_name: string | null;
+  stage: DealStage;
+  amount: number | null;
+  next_action: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DealLog = {
+  id: string;
+  deal_id: string;
+  logged_at: string;
+  handled_by: string | null;
+  content: string | null;
+  stage: DealStage;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type Box = {
   id: string;
   label: string;
@@ -138,7 +191,7 @@ export const BOXES: Box[] = [
   {
     id: "sales",
     label: "営業管理",
-    description: "案件・進捗・実績・行動量・商談の質を可視化します",
+    description: "案件の登録・進捗管理と、SFAスプレッドシートへのリンクを提供します",
   },
   {
     id: "training",
