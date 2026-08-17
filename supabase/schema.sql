@@ -9,6 +9,16 @@ create table if not exists companies (
 
 alter table companies add column if not exists sfa_url text;
 
+-- 会社名の重複登録を防ぐ。既存データに重複がある場合は作成をスキップするので、
+-- 先に重複を解消してから再実行してください。
+do $$
+begin
+  create unique index if not exists companies_name_unique_idx on companies (lower(name));
+exception
+  when unique_violation then
+    raise notice '重複した会社名が存在するため companies_name_unique_idx を作成できませんでした。管理画面で重複を削除してから schema.sql を再実行してください。';
+end $$;
+
 do $$
 begin
   if not exists (select 1 from pg_type where typname = 'user_role') then
